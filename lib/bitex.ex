@@ -3,5 +3,4 @@ defmodule Bitex do
   Documentation for Bitex.
   """
 
-
 end
