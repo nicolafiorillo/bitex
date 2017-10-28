@@ -33,14 +33,27 @@ defmodule Bitex.Kernel do
   end
 
   def value_from_varint([]), do: raise "invalid varint"
-  def value_from_varint([0xFF | payload]) when is_list(payload) and length(payload) >= 8, do: payload |> Enum.slice(0, 8)
+  def value_from_varint([0xFF | payload]) when is_list(payload) and length(payload) >= 8, do: payload |> slicing(8)
   def value_from_varint([0xFF | payload]) when is_list(payload), do: raise "invalid varint 64"
-  def value_from_varint([0xFE | payload]) when is_list(payload) and length(payload) >= 4, do: payload |> Enum.slice(0, 4)
+  def value_from_varint([0xFE | payload]) when is_list(payload) and length(payload) >= 4, do: payload |> slicing(4)
   def value_from_varint([0xFE | payload]) when is_list(payload), do: raise "invalid varint 32"
-  def value_from_varint([0xFD | payload]) when is_list(payload) and length(payload) >= 2, do: payload |> Enum.slice(0, 2)
+  def value_from_varint([0xFD | payload]) when is_list(payload) and length(payload) >= 2, do: payload |> slicing(2)
   def value_from_varint([0xFD | payload]) when is_list(payload), do: raise "invalid varint 16"
-  def value_from_varint([first | _]), do: [first]
+  def value_from_varint([first | rest]), do: {[first], rest}
 
+  def value_from_vardata([]), do: raise "invalid vardata"
+  def value_from_vardata(payload) do
+    {len, payload} = value_from_varint(payload)
+    len = len |> Enum.reverse |> Integer.undigits(16)
+    payload |> slicing(len) |> verify_vardata
+  end
+  
+  defp verify_vardata(nil), do: raise "invalid vardata"
+  defp verify_vardata(v), do: v
+
+  defp slicing(payload, len) when len <= length(payload), do: {payload |> Enum.slice(0, len), payload |> Enum.slice(len, length(payload) - len)}
+  defp slicing(_payload, _len), do: nil
+  
   defp sha256(d) when is_binary(d) or is_bitstring(d), do: :crypto.hash(:sha256, d)
   defp ripemd160(d) when is_binary(d) or is_bitstring(d), do: :crypto.hash(:ripemd160, d)
 end
